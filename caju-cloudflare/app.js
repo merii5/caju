@@ -198,7 +198,7 @@ function createApplication({ openDatabase, readAsset, derivePassword, env = {}, 
 
   function renderContact(response, status, message, { marker, fields = {}, choices = [], textarea, text } = {}) {
     return readAsset('iletisim.html').then(body => {
-      const template = body.toString('utf8');
+      let template = body.toString('utf8');
       for (const [field, value] of Object.entries(fields)) {
         template = template.replace(`name="${field}"`, match => `${match} value="${escapeHtml(value || '')}"`);
       }
