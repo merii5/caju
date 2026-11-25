@@ -663,11 +663,40 @@ function createApplication({ openDatabase, readAsset, derivePassword, env = {}, 
     return html(response, 404, page('Sayfa bulunamadı', ''));
   }
 
+  async function showPublicFallback(request, response) {
+    if (request.method !== 'GET' && request.method !== 'HEAD') return false;
+    const path = new URL(request.url, 'http://localhost').pathname;
+    const file = path === '/' ? 'index.html' : path.slice(1);
+    if (!pages.has(file)) return false;
+
+    let body;
+    try {
+      body = await readAsset(file);
+    } catch {
+      return false;
+    }
+    if (file === 'iletisim.html') {
+      const notice = '<p class="form-status" role="status">Form şu anda kullanılamıyor. Atölyeye bu sayfadaki telefon veya e-posta üzerinden ulaşabilirsiniz.</p>';
+      body = Buffer.from(body.toString('utf8')
+        .replace('<!-- message-status -->', notice)
+        .replace('<!-- booking-status -->', notice)
+        .replaceAll('<button type="submit"', '<button type="submit" disabled'));
+    }
+    response.writeHead(200, {
+      'Content-Type': mime[extname(file)],
+      'Content-Length': body.length,
+      'Cache-Control': 'no-store'
+    });
+    response.end(request.method === 'HEAD' ? undefined : body);
+    return true;
+  }
+
   function handler(request, response) {
-    return handle(request, response).catch(error => {
+    return handle(request, response).catch(async error => {
       if (response.destroyed) return;
       if (error.storageUnavailable) {
         console.error(error.code);
+        if (await showPublicFallback(request, response)) return;
         return html(response, 503, page('Hizmet geçici olarak kullanılamıyor', '<p>Lütfen daha sonra tekrar deneyin.</p>'));
       }
       if (error.status) {
