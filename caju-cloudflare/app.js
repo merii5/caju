@@ -129,10 +129,11 @@ function createApplication({ openDatabase, readAsset, derivePassword, env = {}, 
   }
 
   function sameOrigin(request) {
-    const site = request.headers['sec-fetch-site'];
-    if (site === 'cross-site' || site === 'same-site') return false;
     const origin = request.headers.origin;
-    if (!origin) return true;
+    if (!origin) {
+      const site = request.headers['sec-fetch-site'];
+      return site !== 'cross-site' && site !== 'same-site';
+    }
     try {
       const parsed = new URL(origin);
       if (parsed.origin !== origin || !['https:', 'http:'].includes(parsed.protocol)) return false;
