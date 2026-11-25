@@ -646,7 +646,7 @@ function createApplication({ openDatabase, readAsset, derivePassword, env = {}, 
         let body = await readAsset(file);
         if (file === 'index.html') {
           const [{ announcement, heroTitle, heroIntro }, publishedSection] = await Promise.all([settings.read(), content.publicSection()]);
-          let template = body.toString('utf8');
+          const template = body.toString('utf8')
             .replace('<!-- site-announcement -->', () => announcement ? `<p class="site-announcement">${escapeHtml(announcement)}</p>` : '')
             .replace(/<!-- hero-title -->([\s\S]*?)<!-- \/hero-title -->/, (_, fallback) => heroTitle ? escapeHtml(heroTitle) : fallback)
             .replace(/<!-- hero-intro -->([\s\S]*?)<!-- \/hero-intro -->/, (_, fallback) => heroIntro ? escapeHtml(heroIntro) : fallback)
