@@ -46,7 +46,7 @@ Sunucu, form alanlarını kontrol eder ve geçerli talepleri parametreli bir SQL
 
 ## GitHub ve Vercel dağıtımı
 
-1. Teslim ZIP’ini açın ve içindeki proje dosyalarını boş bir GitHub deposuna yükleyin. ZIP dosyasının kendisini yüklemek yerine dosyaları deponun köküne koyun. Git kullanıyorsanız aşağıdaki komutlarda son satırdan önce `KULLANICI/DEPO` bölümünü değiştirin.
+1. `caju-github-vercel.zip` dosyasını açın. İçindeki dosyaları GitHub deposunun köküne koyun. Mevcut canlı adresi korumak için Vercel’de **Settings → Git** bölümünde bağlı görünen depoyu ve üretim dalını kullanın. `api/index.js`, `public/.gitkeep` ve `vercel.json` dosyalarını da yükleyin. Aşağıdaki Git komutları yeni ve boş bir GitHub deposu içindir.
 
    ```powershell
    git init
@@ -57,9 +57,9 @@ Sunucu, form alanlarını kontrol eder ve geçerli talepleri parametreli bir SQL
    git push -u origin main
    ```
 
-2. Turso’da boş bir veritabanı oluşturun ve erişim belirtecini alın. Uygulama tabloları ilk çalıştırmada oluşturur. Canlı veritabanı boş başlar ve yerel SQLite kayıtları kendiliğinden aktarılmaz.
-3. Vercel’de **Add New → Project** üzerinden GitHub deposunu içe aktarın. Proje kökü depo kökü, Framework Preset **Other**, Node.js sürümü **24.x** olmalıdır. Özel bir Build Command veya Output Directory tanımlamayın. Sunucu işlevi ve yönlendirmeler `vercel.json` ile tanımlıdır.
-4. Aşağıdaki değerleri **Settings → Environment Variables** bölümüne ekleyip dağıtın. Canlı ve önizleme dağıtımlarını kullanacaksanız farklı veritabanları ve farklı erişim belirteçleri tanımlayın.
+2. Turso’da üretim veritabanınız varsa onu kullanın. İlk kez kuruyorsanız boş bir veritabanı oluşturup yazma yetkili erişim belirtecini alın. Uygulama tabloları ilk çalıştırmada oluşturur. Yerel SQLite kayıtları canlı veritabanına kendiliğinden aktarılmaz.
+3. Vercel’de mevcut Caju projesini açın. Yeni bir proje kuruyorsanız **Add New → Project** üzerinden GitHub deposunu içe aktarın. Proje kökü depo kökü, Framework Preset **Other**, Node.js sürümü **24.x** olmalıdır. Build Command ve Output Directory panelindeki elle girilmiş ayarları kaldırın. Çıktı klasörü ve sunucu yönlendirmeleri `vercel.json` üzerinden uygulanır.
+4. Aşağıdaki değişkenleri **Settings → Environment Variables** bölümünde **Production** kapsamına ekleyin. Ardından güncel GitHub commit’ini içeren **Production** dağıtımını başlatın. Canlı ve önizleme dağıtımlarını kullanacaksanız farklı veritabanları ve farklı erişim belirteçleri tanımlayın.
 
 | Değişken | Değer |
 | --- | --- |
@@ -71,9 +71,20 @@ Sunucu, form alanlarını kontrol eder ve geçerli talepleri parametreli bir SQL
 
 Yerel sunucu varsayılan olarak yalnızca `127.0.0.1` üzerinden dinler. Vercel’de formlar, yazılar, site ayarları ve yönetici oturumları Turso’da saklanır. Form ve giriş denemelerine uygulanan sayaçlar Vercel işlevinin her örneğinde ayrı çalışır. `.env.example` değişken adlarını gösterir. Gerçek değerleri GitHub’a eklemeyin.
 
-Teslimden önce canlı adreste bir deneme randevusu oluşturun, yönetim panelinde durumunu değiştirin ve silin. Canlı URL’yi ve öğretim elemanının erişebildiği GitHub depo adresini teslim edin. Yönetici parolası ve gerçek randevu verileri özel kalmalıdır.
+Dağıtımdan sonra [canlı giriş ekranını](https://caju-pied.vercel.app/admin/login) açın. Bir deneme randevusu oluşturun, yönetim panelinde durumunu değiştirin ve silin. Canlı URL’yi ve öğretim elemanının erişebildiği GitHub depo adresini teslim edin. Yönetici parolası ve gerçek randevu verileri özel kalmalıdır.
 
 Dağıtım belgeleri için [Vercel Node.js](https://vercel.com/docs/functions/runtimes/node-js), [Vercel proje yapılandırması](https://vercel.com/docs/project-configuration), [Turso HTTP API](https://docs.turso.tech/sdk/http/reference).
+
+### Canlı yönetici girişi açılmıyorsa
+
+Vercel’de **Logs** sayfasını açıp canlı sitede `/admin/login` adresini yenileyin. Bu isteğe ait hata satırını kontrol edin.
+
+- `TURSO_CONFIG_MISSING` için **Settings → Environment Variables** bölümüne `TURSO_DATABASE_URL` ve `TURSO_AUTH_TOKEN` değerlerini **Production** kapsamında ekleyin.
+- `TURSO_URL_INVALID` için Turso’nun verdiği veritabanı adresini yol veya sorgu parametresi eklemeden kullanın.
+- `TURSO_HTTP_401`, `TURSO_HTTP_403` veya yetkiyle ilgili bir SQL hatası için erişim belirtecinin doğru veritabanına ait olduğunu ve yazma yetkisi olduğunu kontrol edin.
+- `ADMIN_BOOTSTRAP_REQUIRED` için **Production** kapsamında en az 16 karakterlik `ADMIN_PASSWORD` ekleyin.
+
+Ortam değişkenlerini güncelledikten sonra Production dağıtımını yeniden başlatın. Destek isterken hata kodunu paylaşın. Parola ve erişim belirtecini paylaşmayın.
 
 ## Sunum akışı
 

@@ -1,24 +1,51 @@
 const { mkdirSync } = require('node:fs');
 const { dirname, resolve } = require('node:path');
 
+function storageError(code, message) {
+  return Object.assign(new Error(message), { code, storageUnavailable: true });
+}
+
 function openRemoteDatabase(url, token) {
-  const endpoint = new URL(url.replace(/^libsql:\/\//, 'https://'));
-  if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
-    throw new Error('TURSO_DATABASE_URL must use libsql or HTTPS.');
+  let endpoint;
+  try {
+    endpoint = new URL(url.replace(/^libsql:\/\//, 'https://'));
+  } catch {
+    throw storageError('TURSO_URL_INVALID', 'TURSO_DATABASE_URL must be a valid libsql or HTTPS URL.');
+  }
+  if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password ||
+      endpoint.search || endpoint.hash || endpoint.pathname !== '/') {
+    throw storageError('TURSO_URL_INVALID', 'TURSO_DATABASE_URL must contain only the database origin.');
   }
   endpoint.pathname = endpoint.pathname.replace(/\/$/, '') + '/v2/pipeline';
 
   async function pipeline(request) {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      redirect: 'error',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requests: [request, { type: 'close' }] }),
-      signal: AbortSignal.timeout(12000)
-    });
-    if (!response.ok) throw new Error(`Database HTTP status ${response.status}.`);
-    const { results } = await response.json();
-    if (results?.[0]?.type !== 'ok') throw new Error('Remote database statement failed.');
+    let response;
+    try {
+      response = await fetch(endpoint, {
+        method: 'POST',
+        redirect: 'error',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [request, { type: 'close' }] }),
+        signal: AbortSignal.timeout(12000)
+      });
+    } catch {
+      throw storageError('TURSO_CONNECTION_FAILED', 'Could not connect to the configured Turso database.');
+    }
+    if (!response.ok) {
+      throw storageError(`TURSO_HTTP_${response.status}`, 'The configured Turso database rejected the request.');
+    }
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      throw storageError('TURSO_RESPONSE_INVALID', 'Turso did not return a valid pipeline response.');
+    }
+    const { results } = data || {};
+    if (results?.[0]?.type !== 'ok') {
+      const upstreamCode = results?.[0]?.error?.code;
+      const code = typeof upstreamCode === 'string' && /^[A-Z][A-Z_0-9]{0,60}$/.test(upstreamCode) ? upstreamCode : 'STATEMENT_FAILED';
+      throw storageError(`TURSO_${code}`, 'The remote database could not execute a statement.');
+    }
     return results[0].response;
   }
 
@@ -61,7 +88,7 @@ function openDatabase() {
   const { TURSO_DATABASE_URL, TURSO_AUTH_TOKEN, VERCEL } = process.env;
   if (TURSO_DATABASE_URL || TURSO_AUTH_TOKEN || VERCEL) {
     if (!TURSO_DATABASE_URL || !TURSO_AUTH_TOKEN) {
-      throw new Error('Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN for hosted storage.');
+      throw storageError('TURSO_CONFIG_MISSING', 'Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN for hosted storage.');
     }
     return openRemoteDatabase(TURSO_DATABASE_URL, TURSO_AUTH_TOKEN);
   }

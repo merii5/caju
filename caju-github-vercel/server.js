@@ -60,7 +60,10 @@ async function initialize() {
 
   const settings = await createSiteSettings(db, process.env.ADMIN_USER || 'admin',
     production && (password?.length || 0) < 16 ? undefined : password);
-  if (production && !(await settings.username())) throw new Error('Set ADMIN_PASSWORD to at least 16 characters to initialize the administrator.');
+  if (production && !(await settings.username())) {
+    throw Object.assign(new Error('Set ADMIN_PASSWORD to at least 16 characters to initialize the administrator.'),
+      { code: 'ADMIN_BOOTSTRAP_REQUIRED', storageUnavailable: true });
+  }
   const content = await createContent(db, escapeHtml);
 
   return {
@@ -663,6 +666,10 @@ async function handle(request, response) {
 function handler(request, response) {
   return handle(request, response).catch(error => {
     if (response.destroyed) return;
+    if (error.storageUnavailable) {
+      console.error(error.code);
+      return html(response, 503, page('Hizmet geçici olarak kullanılamıyor', '<p>Lütfen daha sonra tekrar deneyin.</p>'));
+    }
     if (error.status) {
       if (!process.env.VERCEL) response.setHeader('Connection', 'close');
       return html(response, error.status, page('Form gönderilemedi', `<p>${escapeHtml(error.message)}</p>`));
